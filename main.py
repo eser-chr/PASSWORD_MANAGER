@@ -82,24 +82,4 @@ class EncryptionManager():
 
 
 # if __name__ == "main":
-print('Hello worlds')
-print('-------------------')
 
-
-key_manager = KeyManager(Paths.key_path)
-enc = EncryptionManager(key_manager, Paths.passwords_path)
-
-enc.add_password('FINANZ', '2324051555eserFINANZ!')
-
-print(enc.passwords)
-enc.add_password('KIT', '2324051555eser')
-enc.add_password('DB', '2324051555eserDB!')
-enc.add_password('ESA', '2324051555eserESA!')
-enc.add_password('SELMA', '2324051555eserSELMA!')
-enc.add_password('KORBER', '2324051555eserKOR!')
-enc.add_password('AMS', '2324051555eserAMS!')
-enc.add_password('FIREFOX', '2324051555eserFIREFOX!')
-enc.add_password('AIT', '2324051555eser!')
-print(enc.passwords)
-
-enc.checkpoint()
