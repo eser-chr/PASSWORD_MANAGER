@@ -2,84 +2,85 @@ from cryptography.fernet import Fernet
 from dataclasses import dataclass
 import pickle
 import pandas as pd
+import argparse
+from lib import KeyManager, EncryptionManager
+from paths import Paths
+import os
+
+def save(enc_manager:EncryptionManager, key_name:str, password:str) -> None:
+    encrypted = enc_manager.encrypt(password)
+    enc_manager.add_encrypted(key_name, encrypted)
+    enc_manager.checkpoint()
+
+def read(enc_manager: EncryptionManager, key_name:str) -> None:
+    print(enc_manager.decrypt_from_dict(key_name))
+
+def alter(enc_manager:EncryptionManager, key_name:str, password:str) -> None:
+    encrypted = enc_manager.encrypt(password)
+    enc_manager.alter(key_name, encrypted)
+    enc_manager.checkpoint()
+
+def delete(enc_manager:EncryptionManager, key_name:str) -> None:
+    enc_manager.delete_password(key_name)
+    enc_manager.checkpoint()
+
+def gen(enc_manager, path:str) -> None: # enc_manager is useless
+    key_manager = KeyManager(path)
+    key_manager.key_generator()
+
+def translate(enc_manager:EncryptionManager, new_key_path:str) -> None:
+    enc_manager_2 = EncryptionManager(KeyManager(new_key_path), Paths.passwords_path)
+    for entry in enc_manager_2.passwords.keys():
+        password = enc_manager.decrypt_from_dict(entry)
+        new_encrypted = enc_manager_2.encrypt(password)
+        enc_manager_2.alter(entry, new_encrypted)
+    del enc_manager
+    enc_manager_2.checkpoint()
 
 
-@dataclass
-class Paths:
-    key_path: str = './key'
-    passwords_path: str = './passwords.json'
+action_map = {'save':save, 'read':read, 
+                  'alter':alter, 'delete':delete, 'gen':gen, 'translate':translate}
+
+def call(key_arg:str, enc_manager: EncryptionManager, options:list) -> None:
+    action_map[key_arg](enc_manager, *options)
 
 
-class KeyManager():
-    def __init__(self, path: str):
-        self.path = path
-        self.__key = None
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter,description = 'Perform various actions using the appropriate flag')
 
-    def key_generator(self) -> None:
-        fernet = Fernet(Fernet.generate_key())
-        with open(self.path, 'wb') as f:
-            pickle.dump(fernet, f)
+    # TODO What if more than one actions are defined??
 
-    def load_key(self) -> None:
-        if self.__key != None:
-            raise TypeError
-        with open(self.path, 'rb') as f:
-            self.__key = pickle.load(f)
+    parser.add_argument('-s', '--save', nargs=2, metavar=('KEY_NAME', 'PASSWORD'), type = str, help='Save a key-value pair by providing a key_name and the associated password.\n\n')
 
-    def get_key(self) -> Fernet:
-        if self.__key == None:
-            self.load_key()
-        return self.__key
+    parser.add_argument('-r', '--read', nargs = 1, type = str, metavar = ('KEY_NAME'),help='Read the password associated with a key_name.\n\n')
+    
+    parser.add_argument('-a', '--alter', type = str, nargs=2, metavar=('KEY_NAME', 'PASSWORD'),help='Alter the password for a given key_name. If the key_name does not exist, the password will not be added.\n\n')
+    
+    parser.add_argument('-d', '--delete', nargs = 1, type = str, metavar =('KEY_NAME'), help='Delete the password associated with a key_name.\n\n')
 
+    parser.add_argument('-g', '--gen', nargs = 1, type=str, metavar = ('<KEY_PATH>'), help='Generate a new key. The key will be stored in the current folder. The passwords are not translated automatically. See option -t, --translation.\n\n')
 
-class EncryptionManager():
-    def __init__(self, key_manager: KeyManager, passwords_path: str):
-        self.key_manager = key_manager
-        self.passwords_path = passwords_path
-        try:
-            self.passwords = pd.read_json(passwords_path)
-        except:
-            self.passwords = pd.Series({})
+    parser.add_argument('-t', '--translate', nargs = 1, type = str, metavar = ('<NEW_KEY_PATH>'), help='Encrypt all the old passwords with a new key.\n\n')
 
-    # def __del__(self):
-    #     # self.checkpoint()
-    #     print('Goodbye')
-    #     #  self.passwords.to_json(self.passwords_path)
-
-    def checkpoint(self):
-        self.passwords.to_json(self.passwords_path)
-
-    def encrypt(self, text: str) -> str:
-        fkey = self.key_manager.get_key()
-        return fkey.encrypt(text.encode())
-
-    def save_encrypted(self, name: str, encrypted: str) -> None:
-        if name in self.passwords.keys():
-            raise KeyError
-        self.passwords[name] = encrypted
-
-    def add_password(self, name: str, text: str) -> None:
-        encrypted = self.encrypt(text)
-        self.save_encrypted(name, encrypted)
-
-    def decrypt(self, encrypted: str) -> str:
-        fkey = self.key_manager.get_key()
-        return fkey.decrypt(encrypted).decode()
-
-    def decrypt_from_dict(self, name: str) -> str:
-        try:
-            return self.decrypt(self.passwords[name])
-        except:
-            print('This key name does not exist')
-            raise KeyError
-
-    # def encrypt_dict(self, dictionary: dict) -> dict:
-    #     mypasswords = {}
-    #     for key in dictionary.keys():
-    #         mypasswords[key] = encrypt(fkey, dictionary[key])
-    #         self.save_encrypted(key, )
-    #     return mypasswords
+    args = vars(parser.parse_args())
+   
+    
+    
+    key_manager = KeyManager(Paths.key_path)
+    #Maybe add a code like a 2 step identification. Makes totally sense.
+    enc_manager = EncryptionManager(key_manager, Paths.passwords_path)
+    print(enc_manager.passwords)
 
 
-# if __name__ == "main":
+    for key_arg in args.keys():
+        if args[key_arg]!=None:
+           call(key_arg, enc_manager, args[key_arg])
 
+
+
+
+
+
+
+
+   
