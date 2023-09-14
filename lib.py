@@ -61,7 +61,7 @@ class EncryptionManager():
         try:
             return self.decrypt(self.passwords[name][0])
         except:
-            print('This key name does not exist')
+            print('This username does not exist. Use -l command to see all your entries.')
             raise KeyError
         
     def delete_password(self, key_name:str) ->None:
