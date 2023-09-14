@@ -1,6 +1,6 @@
 from cryptography.fernet import Fernet
 import pickle
-import pandas as pd
+from pandas import read_json, Series
 
 
 class KeyManager():
@@ -11,7 +11,6 @@ class KeyManager():
 
     def key_generator(self) -> None:
         fernet = Fernet(Fernet.generate_key())
-        #What if another file exists
         with open(self.path, 'wb') as f:
             pickle.dump(fernet, f)
 
@@ -35,9 +34,9 @@ class EncryptionManager():
         self.passwords_path = passwords_path
         self.passwords = None
         try:
-            self.passwords = pd.read_json(passwords_path)
+            self.passwords = read_json(passwords_path)
         except:
-            self.passwords = pd.Series({})
+            self.passwords = Series({})
     
     def checkpoint(self):
         self.passwords.to_json(self.passwords_path)
